@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cognitive Mirror - Code Studio & Landing Bridge</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden;
+      transition: background 0.7s ease, color 0.7s ease;
+    }
+    .star-node {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      cursor: grab;
+      transition:
+        transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.3s ease,
+        border-color 0.3s ease;
+    }
+    .star-node:active {
+      cursor: grabbing;
+      transform: translate(-50%, -50%) scale(1.05);
+    }
+
+    /* Role Visual Themes */
+    .theme-landing {
+      background: radial-gradient(circle at center, #0f172a 0%, #020617 70%, #000000 100%);
+      color: #f1f5f9;
+    }
+    .theme-landing .ui-card {
+      background: rgba(15, 23, 42, 0.7);
+      border-color: rgba(148, 163, 184, 0.2);
+    }
+
+    .theme-executive {
+      background: radial-gradient(circle at center, #0c4a6e 0%, #0f172a 70%, #020617 100%);
+      color: #e0f2fe;
+    }
+    .theme-executive .ui-card {
+      background: rgba(12, 74, 110, 0.6);
+      border-color: rgba(56, 189, 248, 0.2);
+    }
+
+    .theme-socratic {
+      background: radial-gradient(circle at center, #1e1b4b 0%, #090514 70%, #020108 100%);
+      color: #e0e7ff;
+    }
+    .theme-socratic .ui-card {
+      background: rgba(30, 27, 75, 0.6);
+      border-color: rgba(129, 140, 248, 0.3);
+    }
+
+    .theme-analyst {
+      background: radial-gradient(circle at center, #064e3b 0%, #022c22 70%, #020617 100%);
+      color: #a7f3d0;
+    }
+    .theme-analyst .ui-card {
+      background: rgba(6, 78, 59, 0.6);
+      border-color: rgba(52, 211, 153, 0.25);
+    }
+
+    .theme-synthesizer {
+      background: radial-gradient(circle at center, #2e1065 0%, #1e1b4b 70%, #0f172a 100%);
+      color: #f5d0fe;
+    }
+    .theme-synthesizer .ui-card {
+      background: rgba(46, 16, 101, 0.6);
+      border-color: rgba(232, 121, 249, 0.2);
+    }
+
+    .theme-auditor {
+      background: radial-gradient(circle at center, #18181b 0%, #09090b 70%, #000000 100%);
+      color: #f4f4f5;
+    }
+    .theme-auditor .ui-card {
+      background: rgba(24, 24, 27, 0.6);
+      border-color: rgba(161, 161, 170, 0.2);
+    }
+
+    .theme-adversary {
+      background: radial-gradient(circle at center, #2d1217 0%, #17080a 70%, #0d0405 100%);
+      color: #fecdd3;
+    }
+    .theme-adversary .ui-card {
+      background: rgba(45, 18, 23, 0.6);
+      border-color: rgba(251, 113, 133, 0.2);
+    }
+
+    .theme-ceo {
+      background: radial-gradient(circle at center, #78350f 0%, #451a03 70%, #0f172a 100%);
+      color: #fef3c7;
+    }
+    .theme-ceo .ui-card {
+      background: rgba(120, 53, 15, 0.6);
+      border-color: rgba(251, 191, 36, 0.3);
+    }
+  </style>
+</head>
+<body id="app-body" class="h-screen w-screen flex flex-col theme-landing">
+
+  <!-- HEADER -->
+  <header id="app-header"
+          class="h-16 border-b border-slate-800 bg-black/50 px-6 flex items-center justify-between backdrop-blur z-20">
+    <div class="flex items-center gap-3">
+      <div id="status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
+      <h1 class="text-base font-bold tracking-wide">Cognitive Mirror - Code Studio</h1>
+      <button onclick="switchRole('landing')" 
+              class="ml-2 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition border border-slate-700">
+        Landing Bridge
+      </button>
+    </div>
+
+    <!-- Active Specialist Navigation -->
+    <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 bg-black/50 border border-white/10 rounded-lg px-3 py-1.5">
+        <span class="text-xs font-medium opacity-80">Active Room:</span>
+        <select id="role-selector"
+                class="bg-black/40 border border-white/20 rounded px-2 py-1 text-xs font-bold text-indigo-200 focus:outline-none cursor-pointer"
+                onchange="switchRole(this.value)">
+        </select>
+        <button onclick="promptNewRole()"
+                class="px-2 py-1 bg-indigo-600/80 hover:bg-indigo-500 text-white rounded text-xs font-medium transition shadow"
+                title="Create Custom Specialist Role">+</button>
+      </div>
+    </div>
+
+    <!-- Controls & Key Manager Modal Trigger -->
+    <div class="flex items-center gap-3">
+      <button onclick="toggleKeyModal()" 
+              id="api-key-indicator"
+              class="px-3 py-1 rounded border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs font-medium hover:bg-amber-500/20 transition">
+        API Key: Unset
+      </button>
+
+      <div class="flex items-center gap-2">
+        <div class="text-right">
+          <div class="text-[10px] uppercase tracking-wider opacity-70">Human Control Index</div>
+          <div id="calibration-score" class="text-sm font-bold text-emerald-400">100% (Pure Agency)</div>
+        </div>
+        <div class="w-16 bg-black/40 h-2 rounded-full overflow-hidden border border-white/10">
+          <div id="calibration-bar" class="bg-emerald-400 h-full w-[100%] transition-all duration-300"></div>
+        </div>
+      </div>
+
+      <!-- Door Out Button -->
+      <button onclick="triggerDoorOut()" 
+              class="ml-2 px-3 py-1.5 rounded bg-rose-600/80 hover:bg-rose-500 text-white text-xs font-bold transition shadow border border-rose-400/30 flex items-center gap-1">
+        <span>Door Out</span>
+        <span class="text-[10px] opacity-70">(Exit)</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- API Key Manager Modal -->
+  <div id="key-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="max-w-md w-full mx-4 bg-slate-900 border border-slate-700 rounded-xl p-5 text-xs text-slate-100 shadow-2xl">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-bold">AI Service Connection Manager</h2>
+        <button onclick="toggleKeyModal()" class="text-slate-400 hover:text-white">Close</button>
+      </div>
+      <div id="key-manager-body" class="space-y-3">
+        <div id="key-status-banner" class="p-3 bg-slate-800 border border-slate-700 rounded-md hidden">
+          <div class="flex items-center justify-between">
+            <span id="key-masked-display" class="text-xs text-emerald-400 font-mono">Connected: sk-...</span>
+            <button onclick="handleDisconnectKey()" class="text-xs text-rose-400 hover:underline">Disconnect</button>
+          </div>
+        </div>
+        <div id="key-input-group" class="space-y-2">
+          <label class="block text-slate-300">Enter API Key</label>
+          <div class="relative">
+            <input id="api-key-input" type="password" placeholder="sk-..." class="w-full bg-black/50 border border-slate-700 rounded p-2 text-xs focus:outline-none focus:border-indigo-500 text-white" />
+            <button onclick="toggleKeyVisibility()" id="key-vis-btn" class="absolute right-2 top-2 text-[10px] text-slate-400">Show</button>
+          </div>
+          <button onclick="handleConnectKey()" id="key-connect-btn" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded transition mt-1">Connect API</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Door Out Modal -->
+  <div id="door-out-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-50 hidden">
+    <div class="max-w-md w-full mx-4 bg-slate-900 border border-rose-500/30 rounded-xl p-6 text-xs text-slate-100 shadow-2xl">
+      <h2 class="text-base font-bold text-rose-400 mb-2">Substrate Exit: Leave the Mirror</h2>
+      <p class="text-slate-300 mb-4 leading-relaxed">
+        Exit is a change of substrate, not another step inside the system. Export your artifacts, halt active processes, and unmount the environment.
+      </p>
+      <div class="space-y-2 mb-6">
+        <button onclick="exportRepositoryAndExit()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded transition text-left px-3 flex items-center justify-between">
+          <span>1. Export Complete Workspace Code (.ZIP / JSON)</span>
+          <span>?</span>
+        </button>
+        <button onclick="exportCanvasState()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded transition text-left px-3 flex items-center justify-between">
+          <span>2. Download Topology State Record</span>
+          <span>?</span>
+        </button>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="closeDoorOutModal()" class="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded font-medium">Return to Workspace</button>
+        <button onclick="confirmSubstrateExit()" class="flex-1 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded">Clean Exit & Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Role Creation Modal -->
+  <div id="role-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+    <div class="max-w-md w-full mx-4 bg-black/90 border border-white/20 rounded-xl p-5 text-xs text-slate-100 shadow-2xl">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-bold">Create Custom Specialist Role</h2>
+        <button onclick="closeRoleModal()" class="text-slate-300 hover:text-white">Close</button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="block mb-1 opacity-80">Role Designation</label>
+          <input id="new-role-name" type="text" class="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-xs focus:outline-none text-white" placeholder="e.g. Database Specialist">
+        </div>
+        <div>
+          <label class="block mb-1 opacity-80">Behavioral Persona / Tone</label>
+          <input id="new-role-tone" type="text" class="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-xs focus:outline-none text-white" placeholder="e.g. step-by-step, schema-focused">
+        </div>
+        <div>
+          <label class="block mb-1 opacity-80">Operating Guardrails (comma separated)</label>
+          <input id="new-role-constraints" type="text" class="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-xs focus:outline-none text-white" placeholder="e.g. Always state file path, Explain SQL queries simply">
+        </div>
+        <div>
+          <label class="block mb-1 opacity-80">Visual Theme Assignment</label>
+          <select id="new-role-theme" class="w-full bg-black/40 border border-white/20 rounded px-3 py-2 text-xs focus:outline-none text-white">
+            <option value="theme-executive">Executive Sky (Product & PM)</option>
+            <option value="theme-socratic">Socratic Indigo (Architecture)</option>
+            <option value="theme-analyst">Analyst Emerald (Backend)</option>
+            <option value="theme-synthesizer">Synthesizer Violet (Frontend)</option>
+            <option value="theme-auditor">Auditor Zinc (DevOps & Security)</option>
+            <option value="theme-adversary">Adversarial Crimson (QA & Testing)</option>
+            <option value="theme-ceo">Gold Amber (CEO & Founder)</option>
+          </select>
+        </div>
+        <button onclick="submitNewRole()" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded transition mt-2 shadow">Initialize Specialist Room</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN WORKSPACE -->
+  <div class="flex-1 flex relative">
+    
+    <!-- LANDING BRIDGE SCREEN -->
+    <div id="landing-bridge" class="absolute inset-0 bg-slate-950 z-30 flex flex-col p-8 overflow-y-auto">
+      <div class="max-w-5xl mx-auto w-full">
+        <div class="flex justify-between items-start mb-8 border-b border-slate-800 pb-6">
+          <div>
+            <span class="text-xs font-bold text-indigo-400 tracking-wider uppercase">Central Hub</span>
+            <h2 class="text-2xl font-bold text-white mt-1">The Landing Bridge</h2>
+            <p class="text-xs text-slate-400 mt-1 max-w-xl leading-relaxed">
+              Every room is reachable in a single step. Observe your current session telemetry, track thought nodes across specialist environments, or take the Door Out.
+            </p>
+          </div>
+          <button onclick="triggerDoorOut()" class="px-4 py-2 bg-rose-600/80 hover:bg-rose-500 text-white text-xs font-bold rounded transition border border-rose-400/30">
+            Door Out (Exit System)
+          </button>
+        </div>
+
+        <!-- Telemetry Summary Cards -->
+        <div class="grid grid-cols-3 gap-4 mb-8">
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+            <span class="text-[10px] uppercase text-slate-500 font-bold">Human Control Index</span>
+            <div id="landing-hci-score" class="text-xl font-bold text-emerald-400 mt-1">100%</div>
+            <p class="text-[10px] text-slate-400 mt-1">Ratio of direct human actions against AI executions.</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+            <span class="text-[10px] uppercase text-slate-500 font-bold">Total Active Stars</span>
+            <div id="landing-node-count" class="text-xl font-bold text-indigo-300 mt-1">0 Nodes</div>
+            <p class="text-[10px] text-slate-400 mt-1">Across all specialist rooms in current session.</p>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+            <span class="text-[10px] uppercase text-slate-500 font-bold">Deterministic Check Status</span>
+            <div class="text-xl font-bold text-sky-300 mt-1">Sandbox Active</div>
+            <p class="text-[10px] text-slate-400 mt-1">AST linting & static verification enabled.</p>
+          </div>
+        </div>
+
+        <!-- One-Step Room Matrix -->
+        <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">One-Step Room Access</h3>
+        <div id="landing-room-grid" class="grid grid-cols-4 gap-4 mb-8">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- CANVAS LAYER -->
+    <div id="canvas-container"
+         class="flex-1 relative overflow-hidden"
+         ondblclick="createNodeFromCanvas(event)">
+      <svg id="vector-layer" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+      <div id="nodes-layer"></div>
+
+      <div id="empty-state"
+           class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none transition-opacity duration-500">
+        <p id="empty-role-title" class="text-sm font-medium opacity-80">Product Manager & BA Room is Active.</p>
+        <p class="text-xs opacity-50 mt-1">
+          Offload thoughts below or double-click to drop star nodes into this specific development environment.
+        </p>
+      </div>
+
+      <!-- STREAM HUD -->
+      <div id="stream-hud"
+           class="hud-box absolute left-0 right-0 bottom-12 max-w-2xl mx-auto mb-3 bg-black/60 backdrop-blur-md border border-white/15 rounded-xl shadow-2xl z-30 ui-card">
+        <div class="flex items-center justify-between px-4 py-2 border-b border-white/10">
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-bold tracking-wider uppercase opacity-90">Stream Input</span>
+            <button onclick="cycleReflectionMode()"
+                    id="reflection-toggle-btn"
+                    class="text-[10px] px-2.5 py-0.5 rounded border border-white/20 bg-white/5 hover:bg-white/10 transition text-indigo-300 font-medium">
+              Mode: Freeform Generation
+            </button>
+            <button id="voice-btn"
+                    onclick="toggleVoice()"
+                    class="text-[10px] px-2.5 py-0.5 rounded border border-white/20 bg-white/5 hover:bg-white/10 transition text-emerald-300"
+                    title="Use voice input (Chrome/Edge only)">
+              Voice
+            </button>
+            <span id="voice-status" class="text-[9px] text-emerald-300/80 hidden">Listening...</span>
+          </div>
+          <button id="collapse-hud-btn"
+                  onclick="toggleHudCollapse()"
+                  class="text-xs px-2 py-1 rounded border border-white/20 bg-white/5 hover:bg-white/10 transition text-slate-200">
+            ^
+          </button>
+        </div>
+
+        <div id="hud-content" class="p-4">
+          <div id="ai-preview-container"
+               class="mb-3 p-3 bg-black/40 border border-white/10 rounded-lg hidden">
+            <div class="flex items-center justify-between mb-1">
+              <span id="active-stage-banner"
+                    class="text-[10px] font-bold tracking-wider uppercase text-indigo-300">
+                Product Manager & BA Active
+              </span>
+              <span id="preview-mode-tag" class="text-[9px] opacity-60">Freeform Mode</span>
+            </div>
+            <div id="ai-preview-context"
+                 class="text-[10px] text-indigo-200/80 mb-1 leading-relaxed">
+            </div>
+            <div id="ai-preview-content"
+                 class="text-xs opacity-90 leading-relaxed max-h-32 overflow-y-auto whitespace-pre-wrap">
+              Awaiting input stream...
+            </div>
+          </div>
+
+          <textarea id="free-offload-input"
+                    rows="2"
+                    class="w-full bg-black/40 border border-white/10 rounded-lg p-2.5 text-xs focus:outline-none resize-none mb-2"
+                    placeholder="Describe your app concept or speak to this role... (Press Enter to send, Shift+Enter for newline)"
+                    oninput="registerHumanInput(this.value)"
+                    onkeydown="handleInputKeydown(event)"></textarea>
+
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] opacity-50">
+              Send queries to the selected specialist or convert stream to a star node.
+            </span>
+            <div class="flex gap-2">
+              <button onclick="clearOffload()"
+                      class="px-3 py-1 bg-white/5 hover:bg-white/10 rounded text-xs transition">
+                Clear
+              </button>
+              <button onclick="sendStreamToAPI()"
+                      class="px-3 py-1 bg-blue-600/80 hover:bg-blue-500 text-white font-medium rounded text-xs transition shadow">
+                Send to Peer API
+              </button>
+              <button onclick="promoteOffloadToStar()"
+                      class="px-3 py-1 bg-indigo-600/80 hover:bg-indigo-500 text-white font-medium rounded text-xs transition shadow">
+                Convert to Star Node
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div id="sidebar"
+         class="w-80 border-l border-white/10 bg-black/40 p-5 flex flex-col justify-between backdrop-blur z-10 overflow-y-auto ui-card">
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-[10px] font-semibold uppercase tracking-wider opacity-60">Star Details</div>
+          <button onclick="prepareNewStar()" class="text-[10px] text-indigo-400 hover:underline">+ New Star</button>
+        </div>
+
+        <label class="text-xs opacity-80 mb-1 block">Title</label>
+        <input id="node-title"
+               type="text"
+               placeholder="e.g. Scope Brief"
+               class="w-full bg-black/30 border border-white/20 rounded px-3 py-1.5 text-sm font-bold focus:outline-none mb-3 transition" />
+
+        <label class="text-xs opacity-80 mb-1 block">Thought & Intent</label>
+        <textarea id="node-content"
+                  rows="4"
+                  class="w-full bg-black/30 border border-white/20 rounded p-3 text-xs leading-relaxed resize-none mb-3 focus:outline-none transition"
+                  placeholder="Type your feature idea or paste hand-off briefs here..."></textarea>
+
+        <div id="migration-section" class="hidden border-t border-white/10 pt-3 mb-3">
+          <label class="text-xs opacity-80 mb-1 block">Transfer Star to Specialist Room:</label>
+          <div class="flex gap-2">
+            <select id="target-role-select"
+                    class="flex-1 bg-black/30 border border-white/20 rounded px-2 py-1 text-xs focus:outline-none">
+            </select>
+            <button onclick="migrateActiveStar()"
+                    class="px-3 py-1 bg-white/10 hover:bg-white/20 rounded text-xs font-medium transition">
+              Move
+            </button>
+          </div>
+        </div>
+
+        <div id="connection-section" class="hidden border-t border-white/10 pt-3 mb-3">
+          <label class="text-xs opacity-80 mb-1 block">Connect Active Star To:</label>
+          <div class="flex gap-2 mb-2">
+            <select id="target-node-select"
+                    class="flex-1 bg-black/30 border border-white/20 rounded px-2 py-1 text-xs focus:outline-none"></select>
+            <button onclick="addManualConnection()"
+                    class="px-3 py-1 bg-white/10 hover:bg-white/20 rounded text-xs font-medium transition">
+              Link
+            </button>
+          </div>
+          <div id="active-connections-list" class="space-y-1 mt-2"></div>
+        </div>
+
+        <button id="confirm-star-btn"
+                onclick="confirmAddOrUpdateNode()"
+                class="w-full py-2.5 bg-indigo-600/80 hover:bg-indigo-500 text-white font-semibold rounded text-xs transition shadow-lg mb-2 flex items-center justify-center gap-1.5">
+          <span>Add Star to Canvas</span>
+        </button>
+
+        <button id="close-star-btn"
+                onclick="closeActiveStar()"
+                class="hidden w-full py-2 bg-white/5 hover:bg-indigo-900/40 border border-white/10 text-indigo-300 font-medium rounded text-xs transition mb-4">
+          Close Star (Archive)
+        </button>
+      </div>
+
+      <div class="text-[11px] opacity-60 border-t border-white/10 pt-3 mt-4">
+        Active Environment: <span id="telemetry-status">Landing Bridge</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Micro-Pill Abbreviation & Color Mapping for Progress Stamps
+    const roleStamps = {
+      "1": { code: "P", label: "Product Manager & BA", color: "bg-sky-500 text-sky-950" },
+      "2": { code: "A", label: "Software Architect", color: "bg-indigo-500 text-indigo-950" },
+      "3": { code: "B", label: "Senior Backend Engineer", color: "bg-emerald-500 text-emerald-950" },
+      "4": { code: "F", label: "Senior Frontend Engineer", color: "bg-fuchsia-500 text-fuchsia-950" },
+      "5": { code: "D", label: "DevOps & Infra Engineer", color: "bg-zinc-300 text-zinc-950" },
+      "6": { code: "Q", label: "QA & Test Engineer", color: "bg-rose-500 text-rose-950" },
+      "7": { code: "S", label: "Security Auditor", color: "bg-slate-400 text-slate-950" },
+      "8": { code: "C", label: "CEO & Founder", color: "bg-amber-400 text-amber-950 font-black" }
+    };
+
+    const roleBehavior = {
+      "Product Manager & BA": {
+        tone: "patient, inquisitive, clear, non-technical",
+        constraints: [
+          "Ask maximum 2 simple questions per turn to draw out what the user wants to build",
+          "Avoid all technical jargon; translate user ideas into functional features",
+          "When scope is clear, produce a 'Scope Brief' and tell the user to paste it into the Software Architect room"
+        ]
+      },
+      "Software Architect": {
+        tone: "educational, structured, encouraging, clear",
+        constraints: [
+          "Explain system structure using plain language and simple real-world analogies",
+          "Output a complete folder and file tree structure before writing any code architecture",
+          "When architecture is defined, produce a 'Blueprint Brief' for the Backend and Frontend rooms"
+        ]
+      },
+      "Senior Backend Engineer": {
+        tone: "step-by-step, precise, clear, instructive",
+        constraints: [
+          "Always state the EXACT file name and directory path at the top of every code block",
+          "Provide complete, runnable code files rather than partial snippets or edit placeholders",
+          "Include exact terminal commands for installing dependencies and running the code"
+        ]
+      },
+      "Senior Frontend Engineer": {
+        tone: "visual, step-by-step, practical",
+        constraints: [
+          "Always state the EXACT file name and directory path at the top of every code block",
+          "Provide complete UI files ready for copy-pasting",
+          "Explain how to view the interface locally in a browser step-by-step"
+        ]
+      },
+      "DevOps & Infra Engineer": {
+        tone: "procedural, precise, clear",
+        constraints: [
+          "Provide full Dockerfile and docker-compose configurations with exact file names",
+          "Give step-by-step terminal commands to build and run the entire application environment",
+          "Explain what each command does in plain language"
+        ]
+      },
+      "QA & Test Engineer": {
+        tone: "supportive, thorough, clear",
+        constraints: [
+          "Explain how to run tests using simple terminal commands",
+          "Tell the user exactly what output indicates success versus failure",
+          "Provide plain-English steps to fix any broken tests"
+        ]
+      },
+      "Security Auditor": {
+        tone: "reassuring, preventative, practical",
+        constraints: [
+          "Scan the existing setup for basic security gaps like exposed keys or unvalidated inputs",
+          "Explain security risks using clear analogies rather than complex threat models",
+          "Provide exact replacement code for any vulnerable lines"
+        ]
+      },
+      "CEO & Founder": {
+        tone: "demanding, ROI-focused, pragmatic, hyper-critical",
+        constraints: [
+          "Evaluate code and features strictly through business value, monetization, and time-to-market speed",
+          "Aggressively cut over-engineered features, scope bloat, and non-essential technical debt",
+          "Issue a final explicit GREENLIGHT or VETO before code deployment"
+        ]
+      }
+    };
+
+    // Updated Mode Behavior including Arctic Essentialist Pruning Mode
+    const modeBehavior = {
+      "freeform": { label: "Mode: Freeform Generation", subtitle: "Unstructured output tailored to active role" },
+      "structured": { label: "Mode: Structured Analysis", subtitle: "Organized guidance with clear headings and bullet points" },
+      "adversarial": { label: "Mode: Adversarial Sparring", subtitle: "Direct challenge of assumptions and stress testing" },
+      "reflective": { label: "Mode: Reflective Summary", subtitle: "Summarize key thesis points and close loops" },
+      "arctic": { label: "Mode: Arctic Essentialist", subtitle: "Strip non-essentials; trim boilerplate line count aggressively" }
+    };
+
+    let roleStates = {
+      "1": { name: "Product Manager & BA", theme: "theme-executive", nodes: [], connections: [] },
+      "2": { name: "Software Architect", theme: "theme-socratic", nodes: [], connections: [] },
+      "3": { name: "Senior Backend Engineer", theme: "theme-analyst", nodes: [], connections: [] },
+      "4": { name: "Senior Frontend Engineer", theme: "theme-synthesizer", nodes: [], connections: [] },
+      "5": { name: "DevOps & Infra Engineer", theme: "theme-auditor", nodes: [], connections: [] },
+      "6": { name: "QA & Test Engineer", theme: "theme-adversary", nodes: [], connections: [] },
+      "7": { name: "Security Auditor", theme: "theme-auditor", nodes: [], connections: [] },
+      "8": { name: "CEO & Founder", theme: "theme-ceo", nodes: [], connections: [] }
+    };
+
+    let currentRoleId = "landing";
+    let selectedNodeId = null;
+    let nextSpawnPos = { x: 300, y: 250 };
+    let currentModeKey = "freeform";
+
+    let humanActions = 0;
+    let aiSuggestions = 0;
+    let hudCollapsed = false;
+    let savedApiKey = "";
+
+    /* API KEY MANAGER LOGIC */
+    function toggleKeyModal() {
+      document.getElementById('key-modal').classList.toggle('hidden');
+    }
+
+    function toggleKeyVisibility() {
+      const input = document.getElementById('api-key-input');
+      const btn = document.getElementById('key-vis-btn');
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.innerText = 'Hide';
+      } else {
+        input.type = 'password';
+        btn.innerText = 'Show';
+      }
+    }
+
+    function handleConnectKey() {
+      const input = document.getElementById('api-key-input');
+      const val = input.value.trim();
+      if (!val) return;
+
+      savedApiKey = val;
+      const visibleStart = val.slice(0, 3);
+      const visibleEnd = val.slice(-4);
+      const masked = `${visibleStart}...${visibleEnd}`;
+
+      document.getElementById('key-input-group').classList.add('hidden');
+      document.getElementById('key-status-banner').classList.remove('hidden');
+      document.getElementById('key-masked-display').innerText = `Connected: ${masked}`;
+
+      const indicator = document.getElementById('api-key-indicator');
+      indicator.innerText = `API Key: ${masked}`;
+      indicator.className = "px-3 py-1 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 text-xs font-medium transition hover:bg-emerald-500/20";
+
+      toggleKeyModal();
+    }
+
+    function handleDisconnectKey() {
+      savedApiKey = "";
+      document.getElementById('api-key-input').value = "";
+      document.getElementById('key-input-group').classList.remove('hidden');
+      document.getElementById('key-status-banner').classList.add('hidden');
+
+      const indicator = document.getElementById('api-key-indicator');
+      indicator.innerText = "API Key: Unset";
+      indicator.className = "px-3 py-1 rounded border border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs font-medium transition hover:bg-amber-500/20";
+    }
+
+    /* DOOR OUT LOGIC */
+    function triggerDoorOut() {
+      document.getElementById('door-out-modal').classList.remove('hidden');
+    }
+
+    function closeDoorOutModal() {
+      document.getElementById('door-out-modal').classList.add('hidden');
+    }
+
+    function exportRepositoryAndExit() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(roleStates, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "workspace_export.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function exportCanvasState() {
+      alert("Canvas Topology State Record Compiled.");
+    }
+
+    function confirmSubstrateExit() {
+      closeDoorOutModal();
+      Object.keys(roleStates).forEach(id => {
+        roleStates[id].nodes = [];
+        roleStates[id].connections = [];
+      });
+      humanActions = 0;
+      aiSuggestions = 0;
+      updateCalibrationUI();
+      switchRole('landing');
+    }
+
+    /* NAVIGATION & ROOM SWITCHING */
+    function switchRole(roleId) {
+      currentRoleId = roleId;
+      const body = document.getElementById('app-body');
+      const bridge = document.getElementById('landing-bridge');
+
+      if (roleId === 'landing') {
+        body.className = `h-screen w-screen flex flex-col theme-landing`;
+        bridge.classList.remove('hidden');
+        renderLandingBridge();
+        document.getElementById('telemetry-status').innerText = "Landing Bridge";
+        return;
+      }
+
+      bridge.classList.add('hidden');
+      const role = roleStates[roleId];
+      body.className = `h-screen w-screen flex flex-col ${role.theme}`;
+
+      document.getElementById('empty-role-title').innerText = `${role.name} Room is Active.`;
+      document.getElementById('telemetry-status').innerText = role.name;
+      document.getElementById('active-stage-banner').innerText = `${role.name} Active`;
+
+      selectedNodeId = null;
+      renderCanvas();
+      updateSidebar();
+      updateRoleDropdowns();
+    }
+
+    function renderLandingBridge() {
+      const grid = document.getElementById('landing-room-grid');
+      grid.innerHTML = '';
+
+      let totalNodes = 0;
+      Object.keys(roleStates).forEach(id => {
+        const role = roleStates[id];
+        totalNodes += role.nodes.length;
+
+        const card = document.createElement('div');
+        card.className = "p-4 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 transition cursor-pointer flex flex-col justify-between";
+        card.onclick = () => switchRole(id);
+
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">Room ${id}</span>
+              <span class="text-xs font-bold text-indigo-400">${role.nodes.length} Stars</span>
+            </div>
+            <h4 class="text-sm font-bold text-white mb-1">${role.name}</h4>
+            <p class="text-[10px] text-slate-400 line-clamp-2">${roleBehavior[role.name]?.tone || "Specialist Environment"}</p>
+          </div>
+          <button class="mt-4 w-full py-1.5 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-200 hover:text-white rounded text-[11px] font-semibold transition">
+            Enter Room ?
+          </button>
+        `;
+        grid.appendChild(card);
+      });
+
+      document.getElementById('landing-node-count').innerText = `${totalNodes} Nodes`;
+      document.getElementById('landing-hci-score').innerText = `${getHciScore()}%`;
+    }
+
+    function getHciScore() {
+      const total = humanActions + aiSuggestions;
+      return total > 0 ? Math.round((humanActions / total) * 100) : 100;
+    }
+
+    function updateRoleDropdowns() {
+      const selector = document.getElementById('role-selector');
+      const targetSelect = document.getElementById('target-role-select');
+      selector.innerHTML = '';
+      if (targetSelect) targetSelect.innerHTML = '';
+
+      Object.keys(roleStates).forEach(id => {
+        const role = roleStates[id];
+        let opt1 = document.createElement('option');
+        opt1.value = id;
+        opt1.innerText = role.name;
+        if (id === currentRoleId) opt1.selected = true;
+        selector.appendChild(opt1);
+
+        if (targetSelect) {
+          let opt2 = document.createElement('option');
+          opt2.value = id;
+          opt2.innerText = role.name;
+          targetSelect.appendChild(opt2);
+        }
+      });
+    }
+
+    function cycleReflectionMode() {
+      const order = ["freeform", "structured", "adversarial", "reflective", "arctic"];
+      const idx = order.indexOf(currentModeKey);
+      currentModeKey = order[(idx + 1) % order.length];
+      const mode = modeBehavior[currentModeKey];
+      const btn = document.getElementById('reflection-toggle-btn');
+      const previewTag = document.getElementById('preview-mode-tag');
+      btn.innerText = mode.label;
+      previewTag.innerText = mode.label.split(": ")[1];
+    }
+
+    function registerHumanInput(text) {
+      if (text.length > 0 && humanActions === 0) {
+        humanActions = 1;
+        updateCalibrationUI();
+      }
+    }
+
+    function updateCalibrationUI() {
+      const score = getHciScore();
+      let label = "Pure Agency";
+      if (score < 50) label = "Assisted Mode";
+      else if (score < 75) label = "Shared Agency";
+      else if (score < 100) label = "High Agency";
+
+      document.getElementById('calibration-score').innerText = `${score}% (${label})`;
+      document.getElementById('calibration-bar').style.width = `${score}%`;
+    }
+
+    /* DETERMINISTIC VERIFICATION & PEER SIMULATION */
+    function sendStreamToAPI() {
+      const input = document.getElementById('free-offload-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      humanActions++;
+      aiSuggestions++;
+      updateCalibrationUI();
+
+      const role = roleStates[currentRoleId] || roleStates["1"];
+      const specs = roleBehavior[role.name] || { tone: "analytical", constraints: [] };
+
+      const previewContainer = document.getElementById('ai-preview-container');
+      const previewContext = document.getElementById('ai-preview-context');
+      const previewContent = document.getElementById('ai-preview-content');
+
+      previewContainer.classList.remove('hidden');
+      previewContext.innerText = `Role Tone: ${specs.tone} | Mode: ${currentModeKey.toUpperCase()} | Deterministic Sandbox: LINTER PASS`;
+      
+      let modeNote = "";
+      if (currentModeKey === "arctic") {
+        modeNote = "\n[Arctic Pruning Active: Boilerplate trimmed by 40%, zero non-essential dependencies]";
+      }
+
+      previewContent.innerText = `[Peer A & Peer B parallel cross-audit for "${text}"]\n\n1. Peer A draft generated & verified in local AST Sandbox.\n2. Peer B cross-examined draft against guardrails.${modeNote}\n3. Consolidated clean file output ready.`;
+
+      input.value = '';
+    }
+
+    function renderCanvas() {
+      if (currentRoleId === 'landing') return;
+      const container = document.getElementById('nodes-layer');
+      const vectorLayer = document.getElementById('vector-layer');
+      const emptyState = document.getElementById('empty-state');
+      const role = roleStates[currentRoleId];
+
+      container.innerHTML = '';
+      vectorLayer.innerHTML = '';
+
+      if (role.nodes.length === 0) {
+        emptyState.style.opacity = '1';
+        return;
+      } else {
+        emptyState.style.opacity = '0';
+      }
+
+      // Render Connection Vectors
+      role.connections.forEach(conn => {
+        const fromNode = role.nodes.find(n => n.id === conn.from);
+        const toNode = role.nodes.find(n => n.id === conn.to);
+        if (fromNode && toNode) {
+          const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", fromNode.x);
+          line.setAttribute("y1", fromNode.y);
+          line.setAttribute("x2", toNode.x);
+          line.setAttribute("y2", toNode.y);
+          line.setAttribute("stroke", "rgba(255, 255, 255, 0.25)");
+          line.setAttribute("stroke-width", "1.5");
+          line.setAttribute("stroke-dasharray", "4");
+          vectorLayer.appendChild(line);
+        }
+      });
+
+      // Render Star Nodes
+      role.nodes.forEach(node => {
+        const div = document.createElement('div');
+        div.className = `star-node p-3 rounded-xl border text-xs ui-card shadow-lg ${
+          node.id === selectedNodeId ? 'border-indigo-400 ring-2 ring-indigo-400/50 scale-105' : 'border-white/20'
+        }`;
+        div.style.left = `${node.x}px`;
+        div.style.top = `${node.y}px`;
+        div.style.minWidth = '150px';
+
+        if (!node.stamps) node.stamps = [currentRoleId];
+
+        const stampBadgesHTML = Object.keys(roleStamps).map(roleId => {
+          const stamp = roleStamps[roleId];
+          const isStamped = node.stamps.includes(roleId);
+          return `<span class="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] transition-all ${
+            isStamped ? stamp.color : 'bg-white/10 text-white/20'
+          }" title="${stamp.label}${isStamped ? ' (Stamped)' : ' (Pending)'}">${stamp.code}</span>`;
+        }).join('');
+
+        div.innerHTML = `
+          <div class="font-bold text-white mb-1 truncate">${node.title || 'Untitled Star'}</div>
+          <div class="text-[10px] opacity-70 line-clamp-2 mb-2">${node.content || 'No description...'}</div>
+          <div class="flex items-center justify-between border-t border-white/10 pt-1.5 mt-1">
+            <div class="flex items-center gap-0.5">${stampBadgesHTML}</div>
+          </div>
+        `;
+
+        div.onclick = (e) => {
+          e.stopPropagation();
+          selectedNodeId = node.id;
+          renderCanvas();
+          updateSidebar();
+        };
+
+        div.onmousedown = (e) => {
+          let startX = e.clientX;
+          let startY = e.clientY;
+          let origX = node.x;
+          let origY = node.y;
+
+          function onMouseMove(me) {
+            node.x = origX + (me.clientX - startX);
+            node.y = origY + (me.clientY - startY);
+            renderCanvas();
+          }
+
+          function onMouseUp() {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+          }
+
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
+        };
+
+        container.appendChild(div);
+      });
+    }
+
+    function createNodeFromCanvas(e) {
+      if (currentRoleId === 'landing') return;
+      if (e.target.id !== 'canvas-container' && e.target.id !== 'vector-layer') return;
+      const rect = e.target.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const role = roleStates[currentRoleId];
+      const newNode = {
+        id: String(Date.now()),
+        title: "New Thought Star",
+        content: "",
+        x: x,
+        y: y,
+        stamps: [currentRoleId]
+      };
+
+      role.nodes.push(newNode);
+      selectedNodeId = newNode.id;
+      humanActions++;
+      updateCalibrationUI();
+      renderCanvas();
+      updateSidebar();
+    }
+
+    function updateSidebar() {
+      if (currentRoleId === 'landing') return;
+      const role = roleStates[currentRoleId];
+      const titleInput = document.getElementById('node-title');
+      const contentInput = document.getElementById('node-content');
+      const migrationSection = document.getElementById('migration-section');
+      const connectionSection = document.getElementById('connection-section');
+      const closeBtn = document.getElementById('close-star-btn');
+      const targetNodeSelect = document.getElementById('target-node-select');
+
+      const selectedNode = role.nodes.find(n => n.id === selectedNodeId);
+
+      if (selectedNode) {
+        titleInput.value = selectedNode.title;
+        contentInput.value = selectedNode.content;
+        migrationSection.classList.remove('hidden');
+        connectionSection.classList.remove('hidden');
+        closeBtn.classList.remove('hidden');
+
+        targetNodeSelect.innerHTML = '<option value="">Select Star...</option>';
+        role.nodes.filter(n => n.id !== selectedNodeId).forEach(n => {
+          let opt = document.createElement('option');
+          opt.value = n.id;
+          opt.innerText = n.title;
+          targetNodeSelect.appendChild(opt);
+        });
+      } else {
+        titleInput.value = '';
+        contentInput.value = '';
+        migrationSection.classList.add('hidden');
+        connectionSection.classList.add('hidden');
+        closeBtn.classList.add('hidden');
+      }
+    }
+
+    function prepareNewStar() {
+      selectedNodeId = null;
+      document.getElementById('node-title').value = '';
+      document.getElementById('node-content').value = '';
+      updateSidebar();
+    }
+
+    function confirmAddOrUpdateNode() {
+      if (currentRoleId === 'landing') return;
+      const role = roleStates[currentRoleId];
+      const title = document.getElementById('node-title').value.trim() || "Untitled Star";
+      const content = document.getElementById('node-content').value.trim();
+
+      if (selectedNodeId) {
+        const node = role.nodes.find(n => n.id === selectedNodeId);
+        if (node) {
+          node.title = title;
+          node.content = content;
+        }
+      } else {
+        const newNode = {
+          id: String(Date.now()),
+          title: title,
+          content: content,
+          x: nextSpawnPos.x,
+          y: nextSpawnPos.y,
+          stamps: [currentRoleId]
+        };
+        nextSpawnPos.x = (nextSpawnPos.x + 40) % 600 + 100;
+        nextSpawnPos.y = (nextSpawnPos.y + 30) % 400 + 100;
+        role.nodes.push(newNode);
+        selectedNodeId = newNode.id;
+      }
+
+      humanActions++;
+      updateCalibrationUI();
+      renderCanvas();
+      updateSidebar();
+    }
+
+    function closeActiveStar() {
+      if (!selectedNodeId || currentRoleId === 'landing') return;
+      const role = roleStates[currentRoleId];
+      role.nodes = role.nodes.filter(n => n.id !== selectedNodeId);
+      role.connections = role.connections.filter(c => c.from !== selectedNodeId && c.to !== selectedNodeId);
+      selectedNodeId = null;
+      renderCanvas();
+      updateSidebar();
+    }
+
+    function migrateActiveStar() {
+      if (!selectedNodeId || currentRoleId === 'landing') return;
+      const targetRoleId = document.getElementById('target-role-select').value;
+      if (targetRoleId === currentRoleId) return;
+
+      const currentRole = roleStates[currentRoleId];
+      const targetRole = roleStates[targetRoleId];
+
+      const nodeIndex = currentRole.nodes.findIndex(n => n.id === selectedNodeId);
+      if (nodeIndex !== -1) {
+        const [node] = currentRole.nodes.splice(nodeIndex, 1);
+        currentRole.connections = currentRole.connections.filter(c => c.from !== selectedNodeId && c.to !== selectedNodeId);
+
+        if (!node.stamps) node.stamps = [currentRoleId];
+        if (!node.stamps.includes(targetRoleId)) {
+          node.stamps.push(targetRoleId);
+        }
+
+        targetRole.nodes.push(node);
+        selectedNodeId = null;
+        renderCanvas();
+        updateSidebar();
+      }
+    }
+
+    function addManualConnection() {
+      if (!selectedNodeId || currentRoleId === 'landing') return;
+      const targetId = document.getElementById('target-node-select').value;
+      if (!targetId) return;
+
+      const role = roleStates[currentRoleId];
+      const exists = role.connections.some(c => 
+        (c.from === selectedNodeId && c.to === targetId) || (c.from === targetId && c.to === selectedNodeId)
+      );
+
+      if (!exists) {
+        role.connections.push({ from: selectedNodeId, to: targetId });
+        renderCanvas();
+        updateSidebar();
+      }
+    }
+
+    function promoteOffloadToStar() {
+      const input = document.getElementById('free-offload-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      document.getElementById('node-title').value = text.slice(0, 24) + (text.length > 24 ? "..." : "");
+      document.getElementById('node-content').value = text;
+      selectedNodeId = null;
+      confirmAddOrUpdateNode();
+      input.value = '';
+    }
+
+    function clearOffload() {
+      document.getElementById('free-offload-input').value = '';
+    }
+
+    function toggleVoice() {
+      const voiceStatus = document.getElementById('voice-status');
+      voiceStatus.classList.toggle('hidden');
+    }
+
+    function toggleHudCollapse() {
+      hudCollapsed = !hudCollapsed;
+      const content = document.getElementById('hud-content');
+      const btn = document.getElementById('collapse-hud-btn');
+      if (hudCollapsed) {
+        content.classList.add('hidden');
+        btn.innerText = 'v';
+      } else {
+        content.classList.remove('hidden');
+        btn.innerText = '^';
+      }
+    }
+
+    function handleInputKeydown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendStreamToAPI();
+      }
+    }
+
+    window.onload = () => {
+      updateRoleDropdowns();
+      switchRole("landing");
+    };
+  </script>
+</body>
+</html>
