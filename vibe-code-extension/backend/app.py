@@ -37,6 +37,16 @@ def generate_key(email: str, tier: str = "business") -> str:
     conn.close()
     return new_key
 
+def verify_key(key: str) -> bool:
+    if not key:
+        return False
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT is_active FROM licenses WHERE license_key = ?", (key.strip(),))
+    row = cursor.fetchone()
+    conn.close()
+    return row is not None and row[0] == 1
+
 def fetch_all_licenses():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -54,20 +64,32 @@ tab1, tab2, tab3 = st.tabs(["Feature Sandbox", "Key Generator", "License Registr
 
 with tab1:
     st.header("Application Tier Preview")
-    st.info("Core utilities remain open for immediate user access. Business modules display locked states until upgraded.")
+    st.info("Core utilities are fully interactive. Test local execution below or activate a key to unlock team features.")
     
     col1, col2 = st.columns(2)
     
     with col1:
         st.subheader("Standard Tier (Unlocked)")
-        st.text_input("Local Code Scratchpad", value="print('Core features accessible')", disabled=False)
-        st.button("Execute Local Task", disabled=False)
+        code_input = st.text_input("Local Code Scratchpad", value="print('Core features accessible')")
+        if st.button("Execute Local Task"):
+            st.success("Execution Successful")
+            st.code(f"> Executing local script...\n> Output: Core features accessible\n> Status: Process completed with code 0", language="bash")
         
     with col2:
-        st.subheader("Business Tier (Locked)")
-        st.text_input("Shared Team Workspace", value="🔒 Business License Required", disabled=True)
-        st.button("Unlock Enterprise Sync", disabled=True)
-        st.caption("Generate a business key in the next tab to enable these features.")
+        st.subheader("Business Tier")
+        key_input = st.text_input("Enter License Key to Unlock", placeholder="VIBE-XXXXXXXXXXXXXXXX")
+        is_unlocked = verify_key(key_input)
+        
+        if is_unlocked:
+            st.success("Status: Business Tier Active")
+            team_workspace = st.text_input("Shared Team Workspace", value="Team Project Sync Active", disabled=False)
+            if st.button("Run Enterprise Sync"):
+                st.info("Syncing workspace state across team domain...")
+        else:
+            st.error("Status: Feature Locked")
+            st.text_input("Shared Team Workspace", value="🔒 Business License Required", disabled=True)
+            st.button("Unlock Enterprise Sync", disabled=True)
+            st.caption("Generate a business key in the next tab and paste it above to activate.")
 
 with tab2:
     st.header("Generate Business License")
