@@ -4,7 +4,7 @@ import secrets
 import datetime
 import streamlit as st
 
-# Dynamically set the database path relative to app.py
+# Dynamically set database path relative to app.py
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "app.db")
 
@@ -45,17 +45,33 @@ def fetch_all_licenses():
     conn.close()
     return rows
 
-# Initialize database schema on startup
 init_db()
 
-st.set_page_config(page_title="Vibe Extension License Portal", layout="wide")
+st.set_page_config(page_title="Vibe Extension Management Portal", layout="wide")
 st.title("Vibe Extension Management Portal")
 
-tab1, tab2 = st.tabs(["Key Generator", "License Registry"])
+tab1, tab2, tab3 = st.tabs(["Feature Sandbox", "Key Generator", "License Registry"])
 
 with tab1:
+    st.header("Application Tier Preview")
+    st.info("Core utilities remain open for immediate user access. Business modules display locked states until upgraded.")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Standard Tier (Unlocked)")
+        st.text_input("Local Code Scratchpad", value="print('Core features accessible')", disabled=False)
+        st.button("Execute Local Task", disabled=False)
+        
+    with col2:
+        st.subheader("Business Tier (Locked)")
+        st.text_input("Shared Team Workspace", value="🔒 Business License Required", disabled=True)
+        st.button("Unlock Enterprise Sync", disabled=True)
+        st.caption("Generate a business key in the next tab to enable these features.")
+
+with tab2:
     st.header("Generate Business License")
-    email_input = st.text_input("User or Company Email", placeholder="client@company.com")
+    email_input = st.text_input("User or Company Email", value="client@company.com")
     selected_tier = st.selectbox("Tier", ["business", "enterprise"])
     
     if st.button("Generate License Key"):
@@ -66,7 +82,7 @@ with tab1:
         else:
             st.error("Please provide a valid email address.")
 
-with tab2:
+with tab3:
     st.header("Active Registrations")
     records = fetch_all_licenses()
     if records:
