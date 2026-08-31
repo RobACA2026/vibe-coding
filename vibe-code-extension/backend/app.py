@@ -1,9 +1,12 @@
+import os
 import sqlite3
 import secrets
 import datetime
 import streamlit as st
 
-DB_PATH = "backend/app.db"
+# Dynamically set the database path relative to app.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "app.db")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -42,6 +45,7 @@ def fetch_all_licenses():
     conn.close()
     return rows
 
+# Initialize database schema on startup
 init_db()
 
 st.set_page_config(page_title="Vibe Extension License Portal", layout="wide")
